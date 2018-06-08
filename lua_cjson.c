@@ -44,6 +44,10 @@
 
 #include "strbuf.h"
 
+#ifdef MISSING_ISINF
+#define isinf(x) (!isnan(x) && isnan((x) - (x)))
+#endif
+
 #define DEFAULT_SPARSE_CONVERT 0
 #define DEFAULT_SPARSE_RATIO 2
 #define DEFAULT_SPARSE_SAFE 10
@@ -501,7 +505,7 @@ static int lua_array_length(lua_State *l, json_config_t *cfg)
     /* table, startkey */
     while (lua_next(l, -2) != 0) {
         /* table, key, value */
-        if (lua_isnumber(l, -2) &&
+        if (lua_type(l, -2) == LUA_TNUMBER &&
             (k = lua_tonumber(l, -2))) {
             /* Integer >= 1 ? */
             if (floor(k) == k && k >= 1) {
@@ -518,7 +522,7 @@ static int lua_array_length(lua_State *l, json_config_t *cfg)
         return -1;
     }
 
-    /* Encode very sparse arrays as objects (if enabled) */
+    /* Encode excessively sparse arrays as objects (if enabled) */
     if (cfg->encode_sparse_ratio > 0 &&
         max > items * cfg->encode_sparse_ratio &&
         max > cfg->encode_sparse_safe) {

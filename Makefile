@@ -1,4 +1,4 @@
-CJSON_VERSION = 1.0.2
+CJSON_VERSION = 1.0.3
 LUA_VERSION =   5.1
 
 # See http://lua-users.org/wiki/BuildingModules for platform specific
@@ -14,6 +14,9 @@ LDFLAGS +=         -shared
 
 LUA_INCLUDE_DIR ?= $(PREFIX)/include
 LUA_LIB_DIR ?=     $(PREFIX)/lib/lua/$(LUA_VERSION)
+
+# Some versions of Solaris are missing isinf(). Add -DMISSING_ISINF to
+# CFLAGS to work around this bug.
 
 #CFLAGS ?=          -g -Wall -pedantic -fno-inline
 CFLAGS ?=          -g -O3 -Wall -pedantic
