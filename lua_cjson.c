@@ -44,7 +44,50 @@
 
 #include "strbuf.h"
 
-#ifdef MISSING_ISINF
+/* Support to reset locale to POSIX for strtod() / sprintf().
+ * Some locales use comma as a decimal separator. This breaks JSON. */
+#ifdef USE_POSIX_USELOCALE
+
+#ifdef USE_POSIX_SETLOCALE
+#error Must not define USE_POSIX_USELOCALE and USE_POSIX_SETLOCALE simultaneously.
+#endif
+
+/* unistd.h defines _POSIX_VERSION */
+#include <unistd.h>
+
+#if _POSIX_VERSION >= 200809L
+/* POSIX.1-2008 adds threadsafe locale support */
+#include <locale.h>
+#elif defined(_POSIX_VERSION)
+/* Some pre-POSIX.1-2008 operating systems offer xlocale.h instead */
+#include <xlocale.h>
+#else
+#error Missing _POSIX_VERSION define
+#endif  /* _POSIX_VERSION */
+
+#define LOCALE_SET_POSIX(x) (x)->saved_locale = uselocale((x)->posix_locale)
+#define LOCALE_RESTORE(x)   uselocale((x)->saved_locale)
+
+#elif defined(USE_POSIX_SETLOCALE)
+/* ANSI C / ISO C90 implementation. Not thread-safe, affects entire process. */
+#include <locale.h>
+
+#define LOCALE_SET_POSIX(x) \
+    do { \
+        (x)->saved_locale = setlocale(LC_NUMERIC, NULL); \
+        setlocale(LC_NUMERIC, "C"); \
+    } while(0)
+#define LOCALE_RESTORE(x)   setlocale(LC_NUMERIC, (x)->saved_locale)
+
+#else   /* Do not work around locale support in strtod() / sprintf() */
+
+#define LOCALE_SET_POSIX(x) do { } while(0)
+#define LOCALE_RESTORE(x)   do { } while(0)
+
+#endif
+
+/* Workaround for Solaris platforms missing isinf() */
+#if !defined(isinf) && (defined(USE_INTERNAL_ISINF) || defined(MISSING_ISINF))
 #define isinf(x) (!isnan(x) && isnan((x) - (x)))
 #endif
 
@@ -99,6 +142,12 @@ typedef struct {
     char *char2escape[256]; /* Encoding */
 #endif
     strbuf_t encode_buf;
+#if defined(USE_POSIX_USELOCALE)
+    locale_t saved_locale;
+    locale_t posix_locale;
+#elif defined(USE_POSIX_SETLOCALE)
+    const char *saved_locale;
+#endif
     char number_fmt[8];     /* "%.XXg\0" */
     int current_depth;
 
@@ -342,6 +391,10 @@ static int json_destroy_config(lua_State *l)
     json_config_t *cfg;
 
     cfg = lua_touserdata(l, 1);
+#ifdef USE_POSIX_USELOCALE
+    if (cfg->posix_locale)
+        freelocale(cfg->posix_locale);
+#endif
     if (cfg)
         strbuf_free(&cfg->encode_buf);
     cfg = NULL;
@@ -363,6 +416,13 @@ static void json_create_config(lua_State *l)
     lua_setmetatable(l, -2);
 
     strbuf_init(&cfg->encode_buf, 0);
+#ifdef USE_POSIX_USELOCALE
+    cfg->saved_locale = NULL;
+    /* Must not lua_error() before cfg->posix_locale has been initialised */
+    cfg->posix_locale = newlocale(LC_ALL_MASK, "C", NULL);
+    if (!cfg->posix_locale)
+        luaL_error(l, "Failed to create POSIX locale for JSON");
+#endif
 
     cfg->encode_sparse_convert = DEFAULT_SPARSE_CONVERT;
     cfg->encode_sparse_ratio = DEFAULT_SPARSE_RATIO;
@@ -417,32 +477,6 @@ static void json_create_config(lua_State *l)
     cfg->escape2char['f'] = '\f';
     cfg->escape2char['r'] = '\r';
     cfg->escape2char['u'] = 'u';          /* Unicode parsing required */
-
-
-#if 0
-    /* Initialise separate storage for pre-generated escape codes.
-     * Escapes 0-31 map directly, 34, 92, 127 follow afterwards to
-     * save memory. */
-    for (i = 0 ; i < 32; i++)
-        sprintf(cfg->escapes[i], "\\u%04x", i);
-    strcpy(cfg->escapes[8], "\b");              /* Override simpler escapes */
-    strcpy(cfg->escapes[9], "\t");
-    strcpy(cfg->escapes[10], "\n");
-    strcpy(cfg->escapes[12], "\f");
-    strcpy(cfg->escapes[13], "\r");
-    strcpy(cfg->escapes[32], "\\\"");           /* chr(34) */
-    strcpy(cfg->escapes[33], "\\\\");           /* chr(92) */
-    sprintf(cfg->escapes[34], "\\u%04x", 127);  /* char(127) */
-
-    /* Initialise encoding escape lookup table */
-    for (i = 0; i < 32; i++)
-        cfg->char2escape[i] = cfg->escapes[i];
-    for (i = 32; i < 256; i++)
-        cfg->char2escape[i] = NULL;
-    cfg->char2escape[34] = cfg->escapes[32];
-    cfg->char2escape[92] = cfg->escapes[33];
-    cfg->char2escape[127] = cfg->escapes[34];
-#endif
 }
 
 /* ===== ENCODING ===== */
@@ -452,6 +486,7 @@ static void json_encode_exception(lua_State *l, json_config_t *cfg, int lindex,
 {
     if (!cfg->encode_keep_buffer)
         strbuf_free(&cfg->encode_buf);
+    LOCALE_RESTORE(cfg);
     luaL_error(l, "Cannot serialise %s: %s",
                   lua_typename(l, lua_type(l, lindex)), reason);
 }
@@ -542,6 +577,7 @@ static void json_encode_descend(lua_State *l, json_config_t *cfg)
     if (cfg->current_depth > cfg->encode_max_depth) {
         if (!cfg->encode_keep_buffer)
             strbuf_free(&cfg->encode_buf);
+        LOCALE_RESTORE(cfg);
         luaL_error(l, "Cannot serialise, excessive nesting (%d)",
                    cfg->current_depth);
     }
@@ -587,12 +623,17 @@ static void json_append_number(lua_State *l, strbuf_t *json, int index,
     if (cfg->encode_refuse_badnum && (isinf(num) || isnan(num)))
         json_encode_exception(l, cfg, index, "must not be NaN or Inf");
 
-    /* Lowest double printed with %.14g is 21 characters long:
-     * -1.7976931348623e+308
-     *
-     * Use 32 to include the \0, and a few extra just in case..
-     */
-    strbuf_append_fmt(json, 32, cfg->number_fmt, num);
+    if (isnan(num)) {
+        /* Some platforms may print -nan, just hard code it */
+        strbuf_append_mem(json, "nan", 3);
+    } else {
+        /* Lowest double printed with %.14g is 21 characters long:
+         * -1.7976931348623e+308
+         *
+         * Use 32 to include the \0, and a few extra just in case..
+         */
+        strbuf_append_fmt(json, 32, cfg->number_fmt, num);
+    }
 }
 
 static void json_append_object(lua_State *l, json_config_t *cfg,
@@ -701,8 +742,12 @@ static int json_encode(lua_State *l)
     else
         strbuf_init(&cfg->encode_buf, 0);
 
+    LOCALE_SET_POSIX(cfg);
+
     json_append_data(l, cfg, &cfg->encode_buf);
     json = strbuf_string(&cfg->encode_buf, &len);
+
+    LOCALE_RESTORE(cfg);
 
     lua_pushlstring(l, json, len);
 
@@ -1084,6 +1129,8 @@ static void json_throw_parse_error(lua_State *l, json_parse_t *json,
     else
         found = json_token_type_name[token->type];
 
+    LOCALE_RESTORE(json->cfg);
+
     /* Note: token->index is 0 based, display starting from 1 */
     luaL_error(l, "Expected %s but found %s at character %d",
                exp, found, token->index + 1);
@@ -1095,6 +1142,7 @@ static void json_decode_checkstack(lua_State *l, json_parse_t *json, int n)
         return;
 
     strbuf_free(json->tmp);
+    LOCALE_RESTORE(json->cfg);
     luaL_error(l, "Too many nested data structures");
 }
 
@@ -1224,6 +1272,8 @@ static void lua_json_decode(lua_State *l, const char *json_text, int json_len)
      * string must be smaller than the entire json string */
     json.tmp = strbuf_new(json_len);
 
+    LOCALE_SET_POSIX(json.cfg);
+
     json_next_token(&json, &token);
     json_process_value(l, &json, &token);
 
@@ -1232,6 +1282,8 @@ static void lua_json_decode(lua_State *l, const char *json_text, int json_len)
 
     if (token.type != T_END)
         json_throw_parse_error(l, &json, "the end", &token);
+
+    LOCALE_RESTORE(json.cfg);
 
     strbuf_free(json.tmp);
 }
@@ -1273,7 +1325,7 @@ int luaopen_cjson(lua_State *l)
         { NULL, NULL }
     };
 
-    /* Use json_fetch_config as a pointer.
+    /* Use json_config_key as a pointer.
      * It's faster than using a config string, and more unique */
     lua_pushlightuserdata(l, &json_config_key);
     json_create_config(l);
