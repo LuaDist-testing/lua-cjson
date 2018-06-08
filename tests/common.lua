@@ -1,5 +1,4 @@
 require "cjson"
-require "posix"
 
 -- Misc routines to assist with CJSON testing
 --
@@ -97,12 +96,21 @@ function dump_value(value)
 end
 
 function file_load(filename)
-    local file, err = io.open(filename)
-    if file == nil then
-        error("Unable to read " .. filename)
+    local file
+    if filename == nil then
+        file = io.stdin
+    else
+        local err
+        file, err = io.open(filename)
+        if file == nil then
+            error(string.format("Unable to read '%s': %s", filename, err))
+        end
     end
     local data = file:read("*a")
-    file:close()
+
+    if filename ~= nil then
+        file:close()
+    end
 
     if data == nil then
         error("Failed to read " .. filename)
@@ -112,50 +120,20 @@ function file_load(filename)
 end
 
 function file_save(filename, data)
-    local file, err = io.open(filename, "w")
-    if file == nil then
-        error("Unable to write " .. filename)
+    local file
+    if filename == nil then
+        file = io.stdout
+    else
+        local err
+        file, err = io.open(filename, "w")
+        if file == nil then
+            error(string.format("Unable to write '%s': %s", filename, err))
+        end
     end
     file:write(data)
-    file:close()
-end
-
-function gettimeofday()
-    local tv_sec, tv_usec = posix.gettimeofday()
-
-    return tv_sec + tv_usec / 1000000
-end
-
-function benchmark(tests, iter, rep)
-    local function bench(func, iter)
-        collectgarbage("stop")
-        local t = gettimeofday()
-        for i = 1, iter do
-            func(i)
-        end
-        t = gettimeofday() - t
-        collectgarbage("restart")
-        return (iter / t)
+    if filename ~= nil then
+        file:close()
     end
-
-    local test_results = {}
-    for name, func in pairs(tests) do
-        -- k(number), v(string)
-        -- k(string), v(function)
-        -- k(number), v(function)
-        if type(func) == "string" then
-            name = func
-            func = _G[name]
-        end
-        local result = {}
-        for i = 1, rep do
-            result[i] = bench(func, iter)
-        end
-        table.sort(result)
-        test_results[name] = result[rep]
-    end
-
-    return test_results
 end
 
 function compare_values(val1, val2)
@@ -231,7 +209,9 @@ end
 function run_test_group(testgroup, tests)
     local function run_config(configname, func)
         local success, msg = pcall(func)
-        print(string.format("==> Config %s: %s", configname, msg))
+        if msg then
+            print(string.format("==> Config %s: %s", configname, msg))
+        end
         print()
     end
 

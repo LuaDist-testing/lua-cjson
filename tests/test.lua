@@ -147,9 +147,13 @@ local encode_error_tests = {
       false, { "Cannot serialise number: must not be NaN or Inf" } },
     function ()
         json.refuse_invalid_numbers(false)
-        return 'Setting refuse_invalid_numbers(false)'
+        return 'Setting refuse_invalid_numbers(false).'
     end,
-    { json.encode, { NaN }, true, { "-nan" } },
+    function ()
+        print('NOTE: receiving "-nan" in the following test is ok..')
+        return
+    end,
+    { json.encode, { NaN }, true, { "nan" } },
     { json.encode, { Inf }, true, { "inf" } },
     function ()
         json.refuse_invalid_numbers("encode")
@@ -205,6 +209,8 @@ local escape_tests = {
     { json.decode, { utf16_escaped }, true, { utf8_raw } }
 }
 
+print(string.format("Testing CJSON v%s\n", cjson.version))
+
 run_test_group("decode simple value", decode_simple_tests)
 run_test_group("encode simple value", encode_simple_tests)
 run_test_group("decode numeric", decode_numeric_tests)
@@ -219,12 +225,11 @@ run_test_group("decode error", decode_error_tests)
 run_test_group("encode error", encode_error_tests)
 run_test_group("escape", escape_tests)
 
+cjson.refuse_invalid_numbers(false)
 cjson.encode_max_depth(20)
 for i = 1, #arg do
     run_test("decode cycle " .. arg[i], test_decode_cycle, { arg[i] },
              true, { true })
 end
-
-cjson.refuse_invalid_numbers(true)
 
 -- vi:ai et sw=4 ts=4:

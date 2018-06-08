@@ -1,4 +1,4 @@
-CJSON_VERSION = 1.0.1
+CJSON_VERSION = 1.0.2
 LUA_VERSION =   5.1
 
 # See http://lua-users.org/wiki/BuildingModules for platform specific
@@ -18,7 +18,6 @@ LUA_LIB_DIR ?=     $(PREFIX)/lib/lua/$(LUA_VERSION)
 #CFLAGS ?=          -g -Wall -pedantic -fno-inline
 CFLAGS ?=          -g -O3 -Wall -pedantic
 override CFLAGS += -fpic -I$(LUA_INCLUDE_DIR) -DVERSION=\"$(CJSON_VERSION)\"
-LDFLAGS +=         -lm
 
 INSTALL ?= install
 
@@ -39,3 +38,5 @@ clean:
 package:
 	git archive --prefix="lua-cjson-$(CJSON_VERSION)/" master | \
 		gzip -9 > "lua-cjson-$(CJSON_VERSION).tar.gz"
+	git archive --prefix="lua-cjson-$(CJSON_VERSION)/" \
+		-o "lua-cjson-$(CJSON_VERSION).zip" master
