@@ -1,16 +1,16 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "lua-cjson"
-version = "2.0.0-1"
+version = "2.1.0-1"
 
 -- LuaDist source
 source = {
-  tag = "2.0.0-1",
+  tag = "2.1.0-1",
   url = "git://github.com/LuaDist-testing/lua-cjson.git"
 }
 -- Original source
 -- source = {
---     url = "http://www.kyne.com.au/~mark/software/download/lua-cjson-2.0.0.zip",
+--     url = "http://www.kyne.com.au/~mark/software/download/lua-cjson-2.1.0.zip",
 -- }
 
 description = {

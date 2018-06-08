@@ -3,7 +3,7 @@
 %define luadatadir %{_datadir}/lua/%{luaver}
 
 Name:		lua-cjson
-Version:	2.0.0
+Version:	2.1.0
 Release:	1%{?dist}
 Summary:	A fast JSON encoding/parsing module for Lua
 
@@ -57,6 +57,9 @@ rm -rf "$RPM_BUILD_ROOT"
 
 
 %changelog
+* Thu Mar 1 2012 Mark Pulford <mark@kyne.com.au> - 2.1.0-1
+- Update for 2.1.0
+
 * Sun Jan 22 2012 Mark Pulford <mark@kyne.com.au> - 2.0.0-1
 - Update for 2.0.0
 - Install lua2json / json2lua utilities

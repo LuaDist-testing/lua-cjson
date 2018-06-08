@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <meta name="generator" content="AsciiDoc 8.4.5" />
-<title>Lua CJSON 2.0.0 Manual</title>
+<title>Lua CJSON 2.1.0 Manual</title>
 <style type="text/css">
 /* Debug borders */
 p, li, dt, dd, div, pre, h1, h2, h3, h4, h5, h6 {
@@ -458,10 +458,10 @@ function generateToc(toclevels) {
 </head>
 <body>
 <div id="header">
-<h1>Lua CJSON 2.0.0 Manual</h1>
+<h1>Lua CJSON 2.1.0 Manual</h1>
 <span id="author">Mark Pulford</span><br />
 <span id="email"><tt>&lt;<a href="mailto:mark@kyne.com.au">mark@kyne.com.au</a>&gt;</tt></span><br />
-<span id="revdate">January 22, 2012</span>
+<span id="revdate">1st March 2012</span>
 <div id="toc">
   <div id="toctitle">Table of Contents</div>
   <noscript><p><b>JavaScript must be enabled in your browser to display the table of contents.</b></p></noscript>
@@ -616,7 +616,7 @@ has been installed.</p></div>
 by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
-<pre><tt>rpmbuild -tb lua-cjson-<span style="color: #993399">2.0</span><span style="color: #990000">.</span><span style="color: #993399">0</span><span style="color: #990000">.</span>tar<span style="color: #990000">.</span>gz
+<pre><tt>rpmbuild -tb lua-cjson-<span style="color: #993399">2.1</span><span style="color: #990000">.</span><span style="color: #993399">0</span><span style="color: #990000">.</span>tar<span style="color: #990000">.</span>gz
 rpm -Uvh <span style="color: #009900">$LUA_CJSON_RPM</span></tt></pre></div></div>
 <h3 id="_luarocks">2.4. LuaRocks</h3><div style="clear:left"></div>
 <div class="paragraph"><p><a href="http://luarocks.org">LuaRocks</a> can be used to install and manage Lua
@@ -628,7 +628,7 @@ modules on a wide range of platforms (including Windows).</p></div>
 by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
-<pre><tt>cd lua-cjson-<span style="color: #993399">2.0</span><span style="color: #990000">.</span><span style="color: #993399">0</span>
+<pre><tt>cd lua-cjson-<span style="color: #993399">2.1</span><span style="color: #990000">.</span><span style="color: #993399">0</span>
 luarocks make</tt></pre></div></div>
 <div class="admonitionblock">
 <table><tr>
@@ -715,6 +715,7 @@ http://www.gnu.org/software/src-highlite -->
 <pre><tt><span style="font-style: italic"><span style="color: #9A1900">-- Module instantiation</span></span>
 <span style="font-weight: bold"><span style="color: #0000FF">local</span></span> cjson <span style="color: #990000">=</span> require <span style="color: #FF0000">"cjson"</span>
 <span style="font-weight: bold"><span style="color: #0000FF">local</span></span> cjson2 <span style="color: #990000">=</span> cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">new</span></span><span style="color: #990000">()</span>
+<span style="font-weight: bold"><span style="color: #0000FF">local</span></span> cjson_safe <span style="color: #990000">=</span> require <span style="color: #FF0000">"cjson.safe"</span>
 
 <span style="font-style: italic"><span style="color: #9A1900">-- Translate Lua value to/from JSON</span></span>
 text <span style="color: #990000">=</span> cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">encode</span></span><span style="color: #990000">(</span>value<span style="color: #990000">)</span>
@@ -734,10 +735,17 @@ by Lorenzo Bettini
 http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt><span style="font-weight: bold"><span style="color: #0000FF">local</span></span> cjson <span style="color: #990000">=</span> require <span style="color: #FF0000">"cjson"</span>
-<span style="font-weight: bold"><span style="color: #0000FF">local</span></span> cjson2 <span style="color: #990000">=</span> cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">new</span></span><span style="color: #990000">()</span></tt></pre></div></div>
+<span style="font-weight: bold"><span style="color: #0000FF">local</span></span> cjson2 <span style="color: #990000">=</span> cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">new</span></span><span style="color: #990000">()</span>
+<span style="font-weight: bold"><span style="color: #0000FF">local</span></span> cjson_safe <span style="color: #990000">=</span> require <span style="color: #FF0000">"cjson.safe"</span></tt></pre></div></div>
 <div class="paragraph"><p>Import Lua CJSON via the Lua <tt>require</tt> function. Lua CJSON does not
-register a global module table with the default
-<a href="#build_options">build options</a>.</p></div>
+register a global module table.</p></div>
+<div class="paragraph"><p>The <tt>cjson</tt> module will throw an error during JSON conversion if any
+invalid data is encountered. Refer to <a href="#cjson_encode"><tt>cjson.encode</tt></a>
+and <a href="#cjson_decode"><tt>cjson.decode</tt></a> for details.</p></div>
+<div class="paragraph"><p>The <tt>cjson.safe</tt> module behaves identically to the <tt>cjson</tt> module,
+except when errors are encountered during JSON conversion. On error, the
+<tt>cjson_safe.encode</tt> and <tt>cjson_safe.decode</tt> functions will return
+<tt>nil</tt> followed by the error message.</p></div>
 <div class="paragraph"><p><tt>cjson.new</tt> can be used to instantiate an independent copy of the Lua
 CJSON module. The new module has a separate persistent encoding buffer,
 and default settings.</p></div>
@@ -827,8 +835,8 @@ http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt>setting <span style="color: #990000">=</span> cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">decode_invalid_numbers</span></span><span style="color: #990000">([</span>setting<span style="color: #990000">])</span>
 <span style="font-style: italic"><span style="color: #9A1900">-- "setting" must be a boolean. Default: true.</span></span></tt></pre></div></div>
-<div class="paragraph"><p>Lua CJSON may throw an error when trying to decode numbers not supported
-by the JSON specification. <em>Invalid numbers</em> are defined as:</p></div>
+<div class="paragraph"><p>Lua CJSON may generate an error when trying to decode numbers not
+supported by the JSON specification. <em>Invalid numbers</em> are defined as:</p></div>
 <div class="ulist"><ul>
 <li>
 <p>
@@ -876,12 +884,12 @@ http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt>depth <span style="color: #990000">=</span> cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">decode_max_depth</span></span><span style="color: #990000">([</span>depth<span style="color: #990000">])</span>
 <span style="font-style: italic"><span style="color: #9A1900">-- "depth" must be a positive integer. Default: 1000.</span></span></tt></pre></div></div>
-<div class="paragraph"><p>Lua CJSON will throw an error when parsing deeply nested JSON once the
-maximum array/object depth has been exceeded. This check prevents
+<div class="paragraph"><p>Lua CJSON will generate an error when parsing deeply nested JSON once
+the maximum array/object depth has been exceeded. This check prevents
 unnecessarily complicated JSON from slowing down the application, or
 crashing the application due to lack of process stack space.</p></div>
-<div class="paragraph"><p>An error may be thrown before the depth limit is hit if Lua is unable to
-allocate more objects on the Lua stack.</p></div>
+<div class="paragraph"><p>An error may be generated before the depth limit is hit if Lua is unable
+to allocate more objects on the Lua stack.</p></div>
 <div class="paragraph"><p>By default, Lua CJSON will reject JSON with arrays and/or objects nested
 more than 1000 levels deep.</p></div>
 <div class="paragraph"><p>The current setting is always returned, and is only updated when an
@@ -1086,7 +1094,7 @@ http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt>setting <span style="color: #990000">=</span> cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">encode_invalid_numbers</span></span><span style="color: #990000">([</span>setting<span style="color: #990000">])</span>
 <span style="font-style: italic"><span style="color: #9A1900">-- "setting" must a boolean or "null". Default: false.</span></span></tt></pre></div></div>
-<div class="paragraph"><p>Lua CJSON may throw an error when encoding floating point numbers not
+<div class="paragraph"><p>Lua CJSON may generate an error when encoding floating point numbers not
 supported by the JSON specification (<em>invalid numbers</em>):</p></div>
 <div class="ulist"><ul>
 <li>
@@ -1172,10 +1180,10 @@ http://www.lorenzobettini.it
 http://www.gnu.org/software/src-highlite -->
 <pre><tt>depth <span style="color: #990000">=</span> cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">encode_max_depth</span></span><span style="color: #990000">([</span>depth<span style="color: #990000">])</span>
 <span style="font-style: italic"><span style="color: #9A1900">-- "depth" must be a positive integer. Default: 1000.</span></span></tt></pre></div></div>
-<div class="paragraph"><p>Once the maximum table depth has been exceeded Lua CJSON will throw an
-error. This prevents a deeply nested or recursive data structure from
+<div class="paragraph"><p>Once the maximum table depth has been exceeded Lua CJSON will generate
+an error. This prevents a deeply nested or recursive data structure from
 crashing the application.</p></div>
-<div class="paragraph"><p>By default, Lua CJSON will throw an error when trying to encode data
+<div class="paragraph"><p>By default, Lua CJSON will generate an error when trying to encode data
 structures with more than 1000 nested tables.</p></div>
 <div class="paragraph"><p>The current setting is always returned, and is only updated when an
 argument is provided.</p></div>
@@ -1295,7 +1303,7 @@ cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span 
 <h3 id="_name">4.1. _NAME</h3><div style="clear:left"></div>
 <div class="paragraph"><p>The name of the Lua CJSON module (<tt>"cjson"</tt>).</p></div>
 <h3 id="_version">4.2. _VERSION</h3><div style="clear:left"></div>
-<div class="paragraph"><p>The version number of the Lua CJSON module (<tt>"2.0.0"</tt>).</p></div>
+<div class="paragraph"><p>The version number of the Lua CJSON module (<tt>"2.1.0"</tt>).</p></div>
 <h3 id="_null">4.3. null</h3><div style="clear:left"></div>
 <div class="paragraph"><p>Lua CJSON decodes JSON <tt>null</tt> as a Lua <tt>lightuserdata</tt> NULL pointer.
 <tt>cjson.null</tt> is provided for comparison.</p></div>
@@ -1317,7 +1325,7 @@ cjson<span style="color: #990000">.</span><span style="font-weight: bold"><span 
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2012-01-22 14:17:21 CST
+Last updated 2012-03-01 22:52:58 CST
 </div>
 </div>
 </body>
